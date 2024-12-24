@@ -27,7 +27,17 @@ type Order struct {
 	To        time.Time `json:"to"`
 }
 
-var Orders = []Order{}
+var (
+	logger       = log.Default()
+	Orders       = []Order{}
+	Availability = []RoomAvailability{
+		{"reddison", "lux", date(2024, 1, 1), 1},
+		{"reddison", "lux", date(2024, 1, 2), 1},
+		{"reddison", "lux", date(2024, 1, 3), 1},
+		{"reddison", "lux", date(2024, 1, 4), 1},
+		{"reddison", "lux", date(2024, 1, 5), 0},
+	}
+)
 
 type RoomAvailability struct {
 	HotelID string    `json:"hotel_id"`
@@ -36,22 +46,14 @@ type RoomAvailability struct {
 	Quota   int       `json:"quota"`
 }
 
-var Availability = []RoomAvailability{
-	{"reddison", "lux", date(2024, 1, 1), 1},
-	{"reddison", "lux", date(2024, 1, 2), 1},
-	{"reddison", "lux", date(2024, 1, 3), 1},
-	{"reddison", "lux", date(2024, 1, 4), 1},
-	{"reddison", "lux", date(2024, 1, 5), 0},
-}
-
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/orders", createOrder)
+	mux.HandleFunc("POST /orders", createOrder)
 
-	LogInfo("Server listening on localhost:8080")
+	LogInfof("Server listening on localhost:8080")
 	err := http.ListenAndServe(":8080", mux)
 	if errors.Is(err, http.ErrServerClosed) {
-		LogInfo("Server closed")
+		LogInfof("Server closed")
 	} else if err != nil {
 		LogErrorf("Server failed: %s", err)
 		os.Exit(1)
@@ -59,8 +61,14 @@ func main() {
 }
 
 func createOrder(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
 	var newOrder Order
-	json.NewDecoder(r.Body).Decode(&newOrder)
+	if err := json.NewDecoder(r.Body).Decode(&newOrder); err != nil {
+		LogErrorf("invalid request: %v", err)
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
 
 	daysToBook := daysBetween(newOrder.From, newOrder.To)
 
@@ -92,7 +100,7 @@ func createOrder(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newOrder)
 
-	LogInfo("Order successfully created: %v", newOrder)
+	LogInfof("Order successfully created: %v", newOrder)
 }
 
 func daysBetween(from time.Time, to time.Time) []time.Time {
@@ -116,14 +124,12 @@ func date(year, month, day int) time.Time {
 	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 }
 
-var logger = log.Default()
-
 func LogErrorf(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 	logger.Printf("[Error]: %s\n", msg)
 }
 
-func LogInfo(format string, v ...any) {
+func LogInfof(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 	logger.Printf("[Info]: %s\n", msg)
 }

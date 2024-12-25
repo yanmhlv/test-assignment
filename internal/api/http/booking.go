@@ -52,13 +52,6 @@ func (h *BookingHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//
-	if createOrderRequest.From.After(createOrderRequest.To) {
-		http.Error(w, "form validation error, check dates", http.StatusBadRequest)
-		h.errorLogger("invalid date range")
-		return
-	}
-
 	if err := h.service.CreateOrder(booking.Order(createOrderRequest)); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		h.errorLogger("failed to create order", err)

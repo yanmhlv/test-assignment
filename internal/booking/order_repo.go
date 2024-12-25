@@ -9,7 +9,7 @@ type OrderRepository interface {
 }
 
 type InMemoryOrderRepository struct {
-	lock   sync.RWMutex
+	lock   sync.Mutex
 	orders []Order
 }
 

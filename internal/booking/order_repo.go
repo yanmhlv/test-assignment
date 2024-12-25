@@ -21,6 +21,9 @@ func (r *InMemoryOrderRepository) Create(order Order) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
+	// for events, use transactional outbox
+	// in transaction, insert order and insert outbox event with payload
+
 	r.orders = append(r.orders, order)
 	return nil
 }

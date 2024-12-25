@@ -12,6 +12,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,14 +27,27 @@ import (
 	"yanmhlv/test-assignment/internal/booking"
 )
 
+func init() {
+	flag.IntVar(&options.HTTP.ListenPort, "http-port", 8080, "listen on")
+}
+
+var options = struct {
+	HTTP struct {
+		ListenPort int
+	}
+}{}
+
 var logger = log.Default()
 
 func main() {
+	flag.Parse()
+
 	var (
 		orderRepo        = booking.NewInMemoryOrderRepository()
 		availabilityRepo = booking.NewInMemoryAvailabilityRepository()
 		bookingService   = booking.NewBookingService(orderRepo, availabilityRepo)
-		bookingHandler   = httpapi.NewBookingHandler(bookingService, LogInfof, LogErrorf)
+
+		bookingHandler = httpapi.NewBookingHandler(bookingService, LogInfof, LogErrorf)
 	)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -51,7 +65,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	// TODO: use middleware http.TimeoutHandler
-	mux.HandleFunc("/orders", bookingHandler.CreateOrder)
+	mux.HandleFunc("POST /orders", bookingHandler.CreateOrder)
 	srv := &http.Server{
 		Addr:         ":8080",
 		Handler:      mux,

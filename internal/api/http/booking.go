@@ -39,6 +39,11 @@ func (h *BookingHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		UserEmail string    `json:"email"`
 		From      time.Time `json:"from"`
 		To        time.Time `json:"to"`
+
+		// PromoCode           float64
+		// Discount            float64
+		// LoyaltyPointsearned int
+		// Rooms               []RoomDetails
 	}{}
 
 	if err := json.NewDecoder(r.Body).Decode(&createOrderRequest); err != nil {

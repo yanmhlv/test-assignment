@@ -15,7 +15,7 @@ type AvailabilityRepository interface {
 
 type InMemoryAvailabilityRepository struct {
 	lock         sync.RWMutex
-	Availability []RoomAvailability
+	Availability []RoomAvailability // TODO: use map[hotelID][]rooms
 }
 
 func NewInMemoryAvailabilityRepository() *InMemoryAvailabilityRepository {

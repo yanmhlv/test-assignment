@@ -33,7 +33,7 @@ func NewBookingHandler(service *booking.BookingService, infoLog, errorLog func(s
 }
 
 func (h *BookingHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
-	newOrder := struct {
+	createOrderRequest := struct {
 		HotelID   string    `json:"hotel_id"`
 		RoomID    string    `json:"room_id"`
 		UserEmail string    `json:"email"`
@@ -41,19 +41,29 @@ func (h *BookingHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		To        time.Time `json:"to"`
 	}{}
 
-	if err := json.NewDecoder(r.Body).Decode(&newOrder); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&createOrderRequest); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		h.errorLogger("failed to decode request", err)
 		return
 	}
 
-	if err := h.service.CreateOrder(booking.Order(newOrder)); err != nil {
+	//
+	if createOrderRequest.From.After(createOrderRequest.To) {
+		http.Error(w, "form validation error, check dates", http.StatusBadRequest)
+		h.errorLogger("invalid date range")
+		return
+	}
+
+	if err := h.service.CreateOrder(booking.Order(createOrderRequest)); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		h.errorLogger("failed to create order", err)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newOrder)
-	h.infoLogger("order created successfully: %v", newOrder)
+	if err := json.NewEncoder(w).Encode(createOrderRequest); err != nil {
+		h.errorLogger("failed to write response: %v", err)
+		return
+	}
+	h.infoLogger("order created successfully: %v", createOrderRequest)
 }

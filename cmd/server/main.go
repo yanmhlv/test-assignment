@@ -26,16 +26,15 @@ import (
 	"yanmhlv/test-assignment/internal/booking"
 )
 
-var (
-	logger = log.Default()
-
-	orderRepo        = booking.NewInMemoryOrderRepository()
-	availabilityRepo = booking.NewInMemoryAvailabilityRepository()
-	bookingService   = booking.NewBookingService(orderRepo, availabilityRepo)
-	bookingHandler   = httpapi.NewBookingHandler(bookingService, LogInfof, LogErrorf)
-)
+var logger = log.Default()
 
 func main() {
+	var (
+		orderRepo        = booking.NewInMemoryOrderRepository()
+		availabilityRepo = booking.NewInMemoryAvailabilityRepository()
+		bookingService   = booking.NewBookingService(orderRepo, availabilityRepo)
+		bookingHandler   = httpapi.NewBookingHandler(bookingService, LogInfof, LogErrorf)
+	)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
@@ -51,6 +50,7 @@ func main() {
 	)
 
 	mux := http.NewServeMux()
+	// TODO: use middleware http.TimeoutHandler
 	mux.HandleFunc("/orders", bookingHandler.CreateOrder)
 	srv := &http.Server{
 		Addr:         ":8080",
@@ -82,6 +82,8 @@ func main() {
 	if err := eg.Wait(); err != nil {
 		log.Fatalf("Server stopped unexpectedly: %v", err)
 	}
+
+	LogInfof("Server shut down gracefully.")
 }
 
 func LogErrorf(format string, v ...any) {

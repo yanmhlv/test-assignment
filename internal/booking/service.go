@@ -15,7 +15,11 @@ type BookingService struct {
 }
 
 func NewBookingService(orderRepo OrderRepository, availabilityRepo AvailabilityRepository) *BookingService {
-	return &BookingService{orderRepo, availabilityRepo, sync.Mutex{}}
+	return &BookingService{
+		orderRepo:        orderRepo,
+		availabilityRepo: availabilityRepo,
+		lock:             sync.Mutex{},
+	}
 }
 
 func (s *BookingService) CreateOrder(order Order) error {
@@ -34,15 +38,25 @@ func (s *BookingService) CreateOrder(order Order) error {
 			unavailableDays[day] = struct{}{}
 			continue
 		}
+	}
+
+	// check if there is any unavailable dates
+	if len(unavailableDays) > 0 {
+		return fmt.Errorf("room is unavailable for these dates: %v", unavailableDays)
+	}
+
+	// update quotas
+	for _, day := range daysToBook {
+		availability, err := s.availabilityRepo.GetAvailability(order.HotelID, order.RoomID, day)
+		if err != nil || availability == nil || availability.Quota < 1 {
+			unavailableDays[day] = struct{}{}
+			continue
+		}
 
 		availability.Quota--
 		if err := s.availabilityRepo.UpdateAvailability(*availability); err != nil {
 			return fmt.Errorf("failed to update availability: %w", err)
 		}
-	}
-
-	if len(unavailableDays) > 0 {
-		return fmt.Errorf("room is unavailable for these dates: %v", unavailableDays)
 	}
 
 	if err := s.orderRepo.Create(order); err != nil {
